@@ -5,20 +5,21 @@ Created on Tue Jun 27 17:09:28 2023
 @author: tarek
 """
 
+import argparse
 from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 import pynwb
 
-def importSession(filename):
-    # Import specific NWB file
-    filepath = Path("data\TestPlitt", filename)
 
-    # Create handle for object containing NWB file
+def getSessionHandle(filename, directory="data\TestPlitt"):
+    # Access specific NWB file
+    filepath = Path(directory, filename)
+
+    # Return handle for object containing NWB file
     read_io = pynwb.NWBHDF5IO(filepath, "r")
-    read_nwbfile = read_io.read()
-    return read_nwbfile
 
+    return read_io
 
 def printSessionInfo(read_nwbfile):
     # Print out file information. This would be from one session
@@ -89,14 +90,26 @@ def positionalBin(datablocks, posblocks):
     return accResp[:,:-1,:], counterMat
 
 
-R2 = importSession("sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
-tstartData = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data
+if __name__ == "__main__":
 
-# nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
-# dbs, pbs = trialize(deconvTraces, position, startIndices)
-# df, occp = positionalBin(dbs, pbs)
+    argparser = argparse.ArgumentParser()
 
-print(type(tstartData))
+    argparser.add_argument("--filename", default="sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
+    argparser.add_argument("--directory", default="data\TestPlitt")
+
+    args = argparser.parse_args()
+
+    with getSessionHandle(filename=args.filename, directory=args.directory) as read_io:
+        R2 = read_io.read()
+        tstartData = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+
+        # nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
+        # dbs, pbs = trialize(deconvTraces, position, startIndices)
+        # df, occp = positionalBin(dbs, pbs)
+
+        print(type(tstartData))
+
+        import pdb; pdb.set_trace()
 
 
 
