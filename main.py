@@ -9,6 +9,8 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 import pynwb
+import h5py
+
 
 def importSession(filename):
     # Import specific NWB file
@@ -39,8 +41,10 @@ def dataExtraction(read_nwbfile):
     deconvTraces = read_nwbfile.processing["ophys"]["Fluorescence"]["Deconvolved"].data
     
     # information of start time for every trial
-    tstartData = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
-    nTrials = int(sum(tstartData))
+    tstartData = 0
+    nTrials = 0
+    # tstartData = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+    # nTrials = int(sum(tstartData))
 
     # Matrix that stores where the starting points for each trial is
     # Useful to divide trials
@@ -90,13 +94,20 @@ def positionalBin(datablocks, posblocks):
 
 
 R2 = importSession("sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
-tstartData = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data
+# printSessionInfo(R2)
+
+# trace = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+
+
+
+tstartData = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+print(sum(tstartData))
+# test = np.array(tstartData)
 
 # nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
 # dbs, pbs = trialize(deconvTraces, position, startIndices)
 # df, occp = positionalBin(dbs, pbs)
 
-print(type(tstartData))
 
 
 
