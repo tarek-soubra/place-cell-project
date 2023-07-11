@@ -4,22 +4,21 @@ Created on Tue Jun 27 17:09:28 2023
 
 @author: tarek
 """
-
+import argparse
 from pathlib import Path
 from matplotlib import pyplot as plt
 import numpy as np
 import pynwb
-import h5py
 
 
-def importSession(filename):
-    # Import specific NWB file
-    filepath = Path("data\TestPlitt", filename)
+def getSessionHandle(filename, directory="data\TestPlitt"):
+    # Access specific NWB file
+    filepath = Path(directory, filename)
 
-    # Create handle for object containing NWB file
+    # Return handle for object containing NWB file
     read_io = pynwb.NWBHDF5IO(filepath, "r")
-    read_nwbfile = read_io.read()
-    return read_nwbfile
+
+    return read_io
 
 
 def printSessionInfo(read_nwbfile):
@@ -41,10 +40,8 @@ def dataExtraction(read_nwbfile):
     deconvTraces = read_nwbfile.processing["ophys"]["Fluorescence"]["Deconvolved"].data
     
     # information of start time for every trial
-    tstartData = 0
-    nTrials = 0
-    # tstartData = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
-    # nTrials = int(sum(tstartData))
+    tstartData = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+    nTrials = int(sum(tstartData))
 
     # Matrix that stores where the starting points for each trial is
     # Useful to divide trials
@@ -92,22 +89,65 @@ def positionalBin(datablocks, posblocks):
     
     return accResp[:,:-1,:], counterMat
 
+def getSpatialInformation(df, occp, baseMorphList):
+    # This function calculates the spatial information for one cell for each of the 5 different baseMorph values
+    
+    # Find what base morph each trial corresponds
+    baseIndices = {0: np.where(baseMorphList == 0)[0],
+                   0.25: np.where(baseMorphList == 0.25)[0],
+                   0.5: np.where(baseMorphList == 0.5)[0],
+                   0.75: np.where(baseMorphList == 0.75)[0],
+                   1: np.where(baseMorphList == 1)[0]}
+    
+    # Finding the average trial for the given cell for each base morph value 
+    # and calculating the partial occupancy raatio for each sptial bin
+    nBins = 45
+    aggBase = np.zeros([5, nBins])
+    aggOccBase = np.zeros([5, nBins])
+    
+    for i, key in enumerate(baseIndices):
+        baseInds = baseIndices[key]
+        aggBase[i,:] = np.sum(df[baseInds,:], axis=0) / np.sum(occp[baseInds,:], axis=0)
+        aggOccBase[i,:] = np.sum(occp[baseInds,:], axis=0) / np.sum(occp[baseInds,:])
+    
+    
+    # Loop to calculate the spatial information metric for the given cell
+    SI = np.zeros(5)
+    for i, key in enumerate(baseIndices):
+        lmbda = np.mean(aggBase[i,:])
+        logTerm = np.log2((aggBase[i,:]+1e-5)/lmbda)
+        SIPre = (aggOccBase[i,:] * aggBase[i,:] * logTerm)
+        SI[i] = np.sum(SIPre)
+        
+    return SI   
+    
+    
 
-R2 = importSession("sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
-# printSessionInfo(R2)
+if __name__ == "__main__":
 
-# trace = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
+    argparser = argparse.ArgumentParser()
 
+    argparser.add_argument("--filename", default="sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
+    argparser.add_argument("--directory", default="data\TestPlitt")
 
+    args = argparser.parse_args()
 
-tstartData = R2.processing["behavior"]["BehavioralTimeSeries"]["tstart"].data[()]
-print(sum(tstartData))
-# test = np.array(tstartData)
+    with getSessionHandle(filename=args.filename, directory=args.directory) as read_io:
+        R2 = read_io.read()
 
-# nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
-# dbs, pbs = trialize(deconvTraces, position, startIndices)
-# df, occp = positionalBin(dbs, pbs)
-
+        nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
+        dbs, pbs = trialize(deconvTraces, position, startIndices)
+        df, occp = positionalBin(dbs, pbs)
+        
+        SIMatrix = np.zeros((nNeurons, 5))
+        baseMorphList = baseMorph[startIndices]
+        
+        for i in range(nNeurons):
+            SIMatrix[i,:] = getSpatialInformation(df[:,:,i], occp, baseMorphList)
+            # print(SIMatrix[i,:])
+        
+        print(SIMatrix[0,:])
+        # import pdb; pdb.set_trace()
 
 
 
