@@ -10,7 +10,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pynwb
 
+# Global Variables
+baseMorphValues = np.array([0,0.25,0.5,0.75,1])
 
+
+# Start of functions
 def getSessionHandle(filename, directory="data\TestPlitt"):
     # Access specific NWB file
     filepath = Path(directory, filename)
@@ -55,6 +59,7 @@ def dataExtraction(read_nwbfile):
     # Position of the rat over the session
     position = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["pos"].data[()]
     
+    # Return as a dictionary instead
     return nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position
 
 def trialize(data, pos, startIndices):
@@ -65,9 +70,7 @@ def trialize(data, pos, startIndices):
     
     datablocks = [data[myIndices[i]:myIndices[i+1]] for i in range(len(myIndices)-1)]
     posblocks = [pos[myIndices[i]:myIndices[i+1]] for i in range(len(myIndices)-1)]
-    np.array(datablocks,dtype=object)
-    np.array(posblocks,dtype=object)
-    
+        
     return datablocks, posblocks
 
 def positionalBin(datablocks, posblocks): 
@@ -93,26 +96,24 @@ def getSpatialInformation(df, occp, baseMorphList):
     # This function calculates the spatial information for one cell for each of the 5 different baseMorph values
     
     # Find what base morph each trial corresponds
-    baseIndices = {0: np.where(baseMorphList == 0)[0],
-                   0.25: np.where(baseMorphList == 0.25)[0],
-                   0.5: np.where(baseMorphList == 0.5)[0],
-                   0.75: np.where(baseMorphList == 0.75)[0],
-                   1: np.where(baseMorphList == 1)[0]}
+    baseIndices = {i:np.where(baseMorphList == i)[0] for i in baseMorphValues}
     
     # Finding the average trial for the given cell for each base morph value 
-    # and calculating the partial occupancy raatio for each sptial bin
+    # and calculating the partial occupancy ratio for each spatial bin
     nBins = 45
-    aggBase = np.zeros([5, nBins])
-    aggOccBase = np.zeros([5, nBins])
+    nMorphs = len(baseMorphValues)
+    aggBase = np.zeros([nMorphs, nBins])
+    aggOccBase = np.zeros([nMorphs, nBins])
     
-    for i, key in enumerate(baseIndices):
+    for i, key in enumerate(baseMorphValues):
         baseInds = baseIndices[key]
         aggBase[i,:] = np.sum(df[baseInds,:], axis=0) / np.sum(occp[baseInds,:], axis=0)
         aggOccBase[i,:] = np.sum(occp[baseInds,:], axis=0) / np.sum(occp[baseInds,:])
     
     
     # Loop to calculate the spatial information metric for the given cell
-    SI = np.zeros(5)
+    # Turn this into a matrix operation
+    SI = np.zeros(nMorphs)
     for i, key in enumerate(baseIndices):
         lmbda = np.mean(aggBase[i,:])
         logTerm = np.log2((aggBase[i,:]+1e-5)/lmbda)
@@ -122,32 +123,35 @@ def getSpatialInformation(df, occp, baseMorphList):
     return SI   
     
     
+def main():
+    
+    if __name__ == "__main__":
 
-if __name__ == "__main__":
+        argparser = argparse.ArgumentParser()
 
-    argparser = argparse.ArgumentParser()
+        argparser.add_argument("--filename", default="sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
+        argparser.add_argument("--directory", default="data\TestPlitt")
 
-    argparser.add_argument("--filename", default="sub-R2_ses-20190219T210000_behavior+ophys_small.nwb")
-    argparser.add_argument("--directory", default="data\TestPlitt")
+        args = argparser.parse_args()
 
-    args = argparser.parse_args()
+        with getSessionHandle(filename=args.filename, directory=args.directory) as read_io:
+            R2 = read_io.read()
 
-    with getSessionHandle(filename=args.filename, directory=args.directory) as read_io:
-        R2 = read_io.read()
-
-        nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
-        dbs, pbs = trialize(deconvTraces, position, startIndices)
-        df, occp = positionalBin(dbs, pbs)
+            nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
+            dbs, pbs = trialize(deconvTraces, position, startIndices)
+            df, occp = positionalBin(dbs, pbs)
         
-        SIMatrix = np.zeros((nNeurons, 5))
-        baseMorphList = baseMorph[startIndices]
+            SIMatrix = np.zeros((nNeurons, 5))
+            baseMorphList = baseMorph[startIndices]
+            
+            for i in range(nNeurons):
+                SIMatrix[i,:] = getSpatialInformation(df[:,:,i], occp, baseMorphList)
+                # print(SIMatrix[i,:])
         
-        for i in range(nNeurons):
-            SIMatrix[i,:] = getSpatialInformation(df[:,:,i], occp, baseMorphList)
-            # print(SIMatrix[i,:])
-        
-        print(SIMatrix[0,:])
-        # import pdb; pdb.set_trace()
+            print(SIMatrix[0,:])
+            # import pdb; pdb.set_trace()
 
+
+main()
 
 
