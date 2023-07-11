@@ -4,6 +4,7 @@ Created on Tue Jun 27 17:09:28 2023
 
 @author: tarek
 """
+# import pdb
 import argparse
 from pathlib import Path
 from matplotlib import pyplot as plt
@@ -59,8 +60,17 @@ def dataExtraction(read_nwbfile):
     # Position of the rat over the session
     position = read_nwbfile.processing["behavior"]["BehavioralTimeSeries"]["pos"].data[()]
     
-    # Return as a dictionary instead
-    return nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position
+    # Return as a dictionary
+    return {"nFrames":nFrames,
+            "nNeurons":nNeurons,
+            "deconvTraces":deconvTraces,
+            "tstartData":tstartData,
+            "nTrials":nTrials,
+            "startIndices":startIndices,
+            "baseMorph":baseMorph,
+            "totalMorph":totalMorph,
+            "position":position
+            }
 
 def trialize(data, pos, startIndices):
     # Take the data from a session (nFrames x nNeurons) and transform into (nTrials x trial_length x nNeurons)
@@ -111,14 +121,10 @@ def getSpatialInformation(df, occp, baseMorphList):
         aggOccBase[i,:] = np.sum(occp[baseInds,:], axis=0) / np.sum(occp[baseInds,:])
     
     
-    # Loop to calculate the spatial information metric for the given cell
-    # Turn this into a matrix operation
-    SI = np.zeros(nMorphs)
-    for i, key in enumerate(baseIndices):
-        lmbda = np.mean(aggBase[i,:])
-        logTerm = np.log2((aggBase[i,:]+1e-5)/lmbda)
-        SIPre = (aggOccBase[i,:] * aggBase[i,:] * logTerm)
-        SI[i] = np.sum(SIPre)
+    # calculate the spatial information metric for the given cell
+    lmbdas = np.mean(aggBase, axis=1).reshape(-1,1)
+    logTerms = np.log2((aggBase+1e-5)/lmbdas)                   # 1e-5 added to avoid log2(0) = -inf
+    SI = np.sum(aggOccBase * aggBase * logTerms, axis=1)
         
     return SI   
     
@@ -137,7 +143,19 @@ def main():
         with getSessionHandle(filename=args.filename, directory=args.directory) as read_io:
             R2 = read_io.read()
 
-            nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
+            data = dataExtraction(R2)
+            
+            # nFrames = data["nFrames"]
+            nNeurons = data["nNeurons"]
+            deconvTraces = data["deconvTraces"]
+            # tstartData = data["tstartData"]
+            # nTrials = data["nTrials"]
+            startIndices = data["startIndices"]
+            baseMorph = data["baseMorph"]
+            # totalMorph = data["totalMorph"]
+            position = data["position"]
+            
+            # nFrames, nNeurons, deconvTraces, tstartData, nTrials, startIndices, baseMorph, totalMorph, position = dataExtraction(R2)
             dbs, pbs = trialize(deconvTraces, position, startIndices)
             df, occp = positionalBin(dbs, pbs)
         
