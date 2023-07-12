@@ -126,7 +126,10 @@ def getSpatialInformation(df, occp, baseMorphList):
     logTerms = np.log2((aggBase+1e-5)/lmbdas)                   # 1e-5 added to avoid log2(0) = -inf
     SI = np.sum(aggOccBase * aggBase * logTerms, axis=1)
         
-    return SI   
+    return SI
+
+def plot():
+    return
     
     
 def main():
@@ -168,6 +171,8 @@ def main():
         
             print(SIMatrix[0,:])
             # import pdb; pdb.set_trace()
+            
+    return None
 
 
 main()
