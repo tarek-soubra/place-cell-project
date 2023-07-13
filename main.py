@@ -128,7 +128,7 @@ def getSpatialInformation(df, occp, baseMorphList):
         
     return SI
 
-def extractPlaceCells(SIMatrix, perc):
+def extractPlaceCells(SIMatrix, perc=97):
     # function to extract indices of place cells given SI Metric and returns the indices for the
     # place cells in each respective base morph value as a dictionary
     threshold = np.percentile(SIMatrix, perc)
@@ -139,13 +139,6 @@ def extractPlaceCells(SIMatrix, perc):
     
     return placeCellInds
 
-
-    
-
-
-def plot():
-    return
-    
     
 def main():
     
